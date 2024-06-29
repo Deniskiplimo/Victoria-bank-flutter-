@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
-import 'SplashScreen.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Import shared_preferences package
+import 'DashboardScreen.dart';
+import 'SplashScreen.dart'; // Ensure the correct import path for SplashScreen
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();  // Ensure the widget binding is initialized
+  final prefs = await SharedPreferences.getInstance();
+  final isOtpVerified = prefs.getBool('isOtpVerified') ?? false;
+
+  runApp(MyApp(isOtpVerified: isOtpVerified));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  final bool isOtpVerified;
+
+  const MyApp({Key? key, required this.isOtpVerified}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +24,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const SplashScreen(), // Initial splash screen
+      home: isOtpVerified ? const DashboardScreen() : const SplashScreen(), // Show DashboardScreen if OTP is verified, otherwise show SplashScreen
     );
   }
 }

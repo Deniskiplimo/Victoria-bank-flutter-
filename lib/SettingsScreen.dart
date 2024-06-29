@@ -20,7 +20,7 @@ class SettingsScreen extends StatelessWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const PasswordResetScreen()),
+                MaterialPageRoute(builder: (context) => const PasswordResetScreen(userId: '',)),
               );
             },
             child: const Text('Password Reset', style: TextStyle(fontSize: 18)),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'config.dart'; // Import the config file with APIs and responses
+import 'Accounts.dart'; // Import the Account class
 
 class WithdrawScreen extends StatefulWidget {
   const WithdrawScreen({Key? key}) : super(key: key);
@@ -9,38 +10,17 @@ class WithdrawScreen extends StatefulWidget {
 }
 
 class _WithdrawScreenState extends State<WithdrawScreen> {
-  List<Account> accounts = [];
+  late Future<List<Account>> futureAccounts;
   Account? selectedAccount;
   final TextEditingController amountController = TextEditingController();
   final TextEditingController phoneNumberController = TextEditingController();
   final TextEditingController otpController = TextEditingController();
-  bool isLoading = false;
   bool otpSent = false;
-  String otp = '';
 
   @override
   void initState() {
     super.initState();
-    _loadAccounts();
-  }
-
-  Future<void> _loadAccounts() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      List<Account> fetchedAccounts = await Config.fetchAccounts();
-      setState(() {
-        accounts = fetchedAccounts;
-        isLoading = false;
-      });
-    } catch (e) {
-      Config.handleApiError(e);
-      setState(() {
-        isLoading = false;
-      });
-    }
+    futureAccounts = Config.fetchAccountsByCif('540000001'); // Corrected to use a string
   }
 
   Future<void> _withdrawFunds() async {
@@ -51,7 +31,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
     final amount = double.tryParse(amountController.text);
     final phoneNumber = phoneNumberController.text;
-    otp = otpController.text;
+    final otp = otpController.text;
 
     if (amount == null || amount <= 0) {
       _showErrorDialog('Please enter a valid amount');
@@ -60,6 +40,11 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
     if (phoneNumber.isEmpty) {
       _showErrorDialog('Please enter your phone number');
+      return;
+    }
+
+    if (!otpSent) {
+      _showErrorDialog('Please send the OTP first');
       return;
     }
 
@@ -109,90 +94,14 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Withdraw Funds'),
-        backgroundColor: Colors.blue[800],
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Withdraw Funds',
-              style: TextStyle(fontSize: 24),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<Account>(
-              value: selectedAccount,
-              hint: const Text('Select Account'),
-              items: accounts.map((account) {
-                return DropdownMenuItem<Account>(
-                  value: account,
-                  child: Text(account.name),
-                );
-              }).toList(),
-              onChanged: (account) {
-                setState(() {
-                  selectedAccount = account;
-                  // Request OTP when an account is selected
-                  if (account != null) {
-                    _sendOtp(account.id.toString());
-                  }
-                });
-              },
-              decoration: const InputDecoration(
-                labelText: 'From Account',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: phoneNumberController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone Number',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (otpSent)
-              TextField(
-                controller: otpController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Enter OTP',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _withdrawFunds,
-              child: const Text('Withdraw Funds'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Future<void> _sendOtp(String phoneNumber) async {
+    if (phoneNumber.isEmpty) {
+      _showErrorDialog('Please enter your phone number');
+      return;
+    }
 
-  Future<void> _sendOtp(String accountId) async {
     try {
-      await Config.sendOtp(phoneNumberController.text);
+      await Config.sendOtp(phoneNumber);
       setState(() {
         otpSent = true;
       });
@@ -206,5 +115,114 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
       Config.handleApiError(e);
       _showErrorDialog('Failed to send OTP');
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Withdraw Funds'),
+        backgroundColor: Colors.blue[800],
+      ),
+      body: FutureBuilder<List<Account>>(
+        future: futureAccounts,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (snapshot.hasData) {
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Withdraw Funds',
+                    style: TextStyle(fontSize: 24),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<Account>(
+                    value: selectedAccount,
+                    hint: const Text('Select Account'),
+                    items: snapshot.data!.map((account) {
+                      return DropdownMenuItem<Account>(
+                        value: account,
+                        child: Text(account.accountName),
+                      );
+                    }).toList(),
+                    onChanged: (account) {
+                      setState(() {
+                        selectedAccount = account;
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'From Account',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: phoneNumberController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Amount',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (otpSent)
+                    TextField(
+                      controller: otpController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Enter OTP',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _sendOtp(phoneNumberController.text),
+                          child: const Text('Send OTP'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _withdrawFunds,
+                          child: const Text('Withdraw Funds'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          } else {
+            return const Center(child: Text('No accounts found'));
+          }
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    amountController.dispose();
+    phoneNumberController.dispose();
+    otpController.dispose();
+    super.dispose();
   }
 }

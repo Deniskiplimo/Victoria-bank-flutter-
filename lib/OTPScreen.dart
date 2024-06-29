@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'PasswordResetScreen.dart';
 import 'config.dart';
 
 class OTPScreen extends StatefulWidget {
@@ -22,14 +23,39 @@ class _OTPScreenState extends State<OTPScreen> {
   @override
   void initState() {
     super.initState();
-    // Optionally initialize phone number if passed as argument or use a placeholder.
-    // No need to initialize the phone number in this screen
+    _sendOtp(); // Automatically send OTP when the screen is initialized
   }
 
-  void _verifyOtp() async {
+  Future<void> _sendOtp() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await Config.sendOtp(widget.phoneNumber); // Send OTP to the given phone number
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('OTP sent successfully!'),
+          backgroundColor: Colors.green[700],
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error sending OTP: $e'),
+          backgroundColor: Colors.red[700],
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _verifyOtp() async {
     final otp = _otpController.text;
-    final phoneNumber = widget.phoneNumber;
-    final accountId = widget.accountId;
 
     if (otp.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -43,24 +69,27 @@ class _OTPScreenState extends State<OTPScreen> {
     });
 
     try {
-      final verified = await Config.verifyOtp(phoneNumber, otp);
+      await Config.verifyOtp(widget.phoneNumber, otp); // Verify the OTP
 
-      if (verified) {
-        await Config.withdrawFunds(accountId, phoneNumber, 1000); // Example amount, replace as needed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('OTP Verified Successfully'),
+          backgroundColor: Colors.green[700],
+        ),
+      );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('OTP Verified and Transaction Completed Successfully')),
-        );
-
-        Navigator.pushReplacementNamed(context, '/home'); // Navigate to the home screen or another appropriate screen
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Invalid OTP')),
-        );
-      }
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PasswordResetScreen(userId: widget.accountId),  // Navigate to PasswordResetScreen with accountId
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error verifying OTP: $e')),
+        SnackBar(
+          content: Text('Error verifying OTP: $e'),
+          backgroundColor: Colors.red[700],
+        ),
       );
     } finally {
       setState(() {
@@ -137,6 +166,22 @@ class _OTPScreenState extends State<OTPScreen> {
                       )
                           : const Text('Verify OTP', style: TextStyle(fontSize: 18, color: Colors.white)),
                     ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _sendOtp,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[800],
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(
+                        color: Colors.white,
+                      )
+                          : const Text('Resend OTP', style: TextStyle(fontSize: 18, color: Colors.white)),
+                    ),
                   ],
                 ),
               ),
@@ -145,5 +190,11 @@ class _OTPScreenState extends State<OTPScreen> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
   }
 }
