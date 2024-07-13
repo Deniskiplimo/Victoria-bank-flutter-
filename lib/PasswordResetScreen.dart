@@ -23,33 +23,32 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
       _successMessage = null;  // Clear any previous success message
     });
 
-    try {
-      final oldPassword = _oldPasswordController.text.trim();
-      final newPassword = _newPasswordController.text.trim();
-      final confirmPassword = _confirmPasswordController.text.trim();
+    final oldPassword = _oldPasswordController.text.trim();
+    final newPassword = _newPasswordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
 
-      if (oldPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
-        setState(() {
-          _errorMessage = 'All fields are required';
-        });
-        return;
-      }
-
-      if (newPassword != confirmPassword) {
-        setState(() {
-          _errorMessage = 'New password and confirmation do not match';
-        });
-        return;
-      }
-
-      final successMessage = await Config.resetPassword(widget.userId, oldPassword, newPassword, confirmPassword);
-
+    if (oldPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
       setState(() {
-        _successMessage = successMessage;  // Set the success message
+        _errorMessage = 'All fields are required';
+      });
+      return;
+    }
+
+    if (newPassword != confirmPassword) {
+      setState(() {
+        _errorMessage = 'New password and confirmation do not match';
+      });
+      return;
+    }
+
+    try {
+      await Config.resetPassword(widget.userId, oldPassword, newPassword, confirmPassword);
+      setState(() {
+        _successMessage = 'Password reset successful';  // Set the success message
       });
 
       // Navigate to the login screen or another screen
-      Navigator.pop(context);
+      Navigator.of(context).pop();  // Returning to the previous screen
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();  // Display password reset error

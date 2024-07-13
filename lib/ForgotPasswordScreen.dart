@@ -26,18 +26,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _errorMessage = null; // Clear any previous error message
     });
 
-    try {
-      final userId = _userIdController.text.trim();
-      if (userId.isEmpty) {
-        setState(() {
-          _errorMessage = 'User ID cannot be empty';
-        });
-        return;
-      }
+    final userId = _userIdController.text.trim();
+    if (userId.isEmpty) {
+      setState(() {
+        _errorMessage = 'User ID cannot be empty';
+      });
+      return;
+    }
 
+    try {
       final question = await Config.getSecurityQuestion(userId);
       setState(() {
-        _securityQuestion = question;
+        _securityQuestion = question as String?;
       });
     } catch (e) {
       setState(() {
@@ -51,18 +51,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _errorMessage = null; // Clear any previous error message
     });
 
+    final userId = _userIdController.text.trim();
+    final answer = _securityAnswerController.text.trim();
+
+    if (userId.isEmpty || answer.isEmpty) {
+      setState(() {
+        _errorMessage = 'User ID and security answer cannot be empty';
+      });
+      return;
+    }
+
     try {
-      final userId = _userIdController.text.trim();
-      final answer = _securityAnswerController.text.trim();
-
-      if (userId.isEmpty || answer.isEmpty) {
-        setState(() {
-          _errorMessage = 'User ID and security answer cannot be empty';
-        });
-        return;
-      }
-
-      // Here we assume the questionId is always 1. Adjust according to your real logic.
+      // Assuming questionId is always 1; adjust according to your real logic.
       final questionId = 1;
       final isValid = await Config.verifySecurityAnswer(userId, [questionId], [answer]);
 
@@ -95,6 +95,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
               controller: _userIdController,
